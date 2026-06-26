@@ -1,12 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import apiClient from '../api/client';
+import apiClient, { getErrorMessage } from '../api/client';
+import { useToast } from '../context/ToastContext';
 import FileUpload from '../components/FileUpload';
 import type { Category, Characteristic } from '../types';
+
+interface FormErrors {
+  title?: string;
+  slug?: string;
+  categoryId?: string;
+  price?: string;
+  article?: string;
+}
 
 export default function ProductFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const isEdit = Boolean(id);
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -19,40 +29,81 @@ export default function ProductFormPage() {
     article: '',
     categoryId: '',
   });
+  const [errors, setErrors] = useState<FormErrors>({});
   const [characteristics, setCharacteristics] = useState<Characteristic[]>([]);
   const [images, setImages] = useState<{ id: string; url: string }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    apiClient.get('/api/categories').then((res) => setCategories(res.data)).catch(console.error);
-  }, []);
+    Promise.all([
+      apiClient.get('/api/categories'),
+      isEdit && id ? apiClient.get(`/api/products/id/${id}`) : Promise.resolve(null),
+    ])
+      .then(([catRes, prodRes]) => {
+        setCategories(catRes.data);
 
-  useEffect(() => {
-    if (!isEdit || !id) return;
-    apiClient.get(`/api/products/id/${id}`).then((res) => {
-      const p = res.data;
-      setForm({
-        title: p.title,
-        slug: p.slug,
-        description: p.description || '',
-        priceType: p.priceType || 'FIXED',
-        price: p.price?.toString() || '',
-        article: p.article || '',
-        categoryId: p.categoryId,
-      });
-      setCharacteristics(p.characteristics || []);
-      setImages(p.images?.map((img: any) => ({ id: img.id, url: img.url })) || []);
-    }).catch(console.error);
-  }, [id, isEdit]);
+        if (prodRes?.data) {
+          const p = prodRes.data;
+          setForm({
+            title: p.title,
+            slug: p.slug,
+            description: p.description || '',
+            priceType: p.priceType || 'FIXED',
+            price: p.price?.toString() || '',
+            article: p.article || '',
+            categoryId: p.categoryId,
+          });
+          setCharacteristics(p.characteristics || []);
+          setImages(
+            p.images?.map((img: any) => ({ id: img.id, url: img.url })) || []
+          );
+        }
+      })
+      .catch((err) => addToast('error', getErrorMessage(err)))
+      .finally(() => setFetching(false));
+  }, [id, isEdit, addToast]);
 
-  // Если редактируем, slug не меняем автоматически
   const generateSlug = (title: string) => {
     if (isEdit) return form.slug;
     return title
       .toLowerCase()
       .replace(/[^a-z0-9а-яё]+/g, '-')
       .replace(/^-|-$/g, '');
+  };
+
+  const validate = (): boolean => {
+    const e: FormErrors = {};
+
+    if (!form.title.trim()) {
+      e.title = 'Название обязательно';
+    } else if (form.title.length > 200) {
+      e.title = 'Название не может быть длиннее 200 символов';
+    }
+
+    if (!form.slug.trim()) {
+      e.slug = 'Slug обязателен';
+    } else if (!/^[a-z0-9-]+$/.test(form.slug)) {
+      e.slug = 'Slug может содержать только латинские буквы, цифры и дефис';
+    }
+
+    if (!form.categoryId) {
+      e.categoryId = 'Выберите категорию';
+    }
+
+    if (form.priceType === 'FIXED' && form.price) {
+      const priceNum = parseFloat(form.price);
+      if (isNaN(priceNum) || priceNum < 0) {
+        e.price = 'Цена должна быть положительным числом';
+      }
+    }
+
+    if (form.article && form.article.length > 50) {
+      e.article = 'Артикул не может быть длиннее 50 символов';
+    }
+
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const addCharacteristic = () => {
@@ -63,7 +114,11 @@ export default function ProductFormPage() {
     setCharacteristics(characteristics.filter((_, i) => i !== index));
   };
 
-  const updateCharacteristic = (index: number, field: 'key' | 'value', val: string) => {
+  const updateCharacteristic = (
+    index: number,
+    field: 'key' | 'value',
+    val: string
+  ) => {
     const updated = [...characteristics];
     updated[index] = { ...updated[index], [field]: val };
     setCharacteristics(updated);
@@ -71,8 +126,9 @@ export default function ProductFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
+
     setLoading(true);
-    setError('');
 
     try {
       const payload: Record<string, any> = {
@@ -80,7 +136,8 @@ export default function ProductFormPage() {
         slug: form.slug,
         description: form.description || undefined,
         priceType: form.priceType,
-        price: form.priceType === 'FIXED' ? parseFloat(form.price) || 0 : null,
+        price:
+          form.priceType === 'FIXED' ? parseFloat(form.price) || 0 : null,
         article: form.article || undefined,
         categoryId: form.categoryId,
         characteristics: characteristics.filter((c) => c.key && c.value),
@@ -89,44 +146,71 @@ export default function ProductFormPage() {
 
       if (isEdit) {
         await apiClient.put(`/admin/products/${id}`, payload);
+        addToast('success', 'Товар обновлён');
       } else {
         await apiClient.post('/admin/products', payload);
+        addToast('success', 'Товар создан');
       }
       navigate('/admin/products');
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message);
+    } catch (err) {
+      addToast('error', getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetching) return <div className="loading">Загрузка...</div>;
+
   return (
     <div className="page">
-      <h1 className="page-title">{isEdit ? 'Редактировать товар' : 'Новый товар'}</h1>
+      <h1 className="page-title">
+        {isEdit ? 'Редактировать товар' : 'Новый товар'}
+      </h1>
 
       <div className="card">
-        {error && <div className="alert alert-error">{error}</div>}
-
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="form-group">
-            <label>Название *</label>
+            <label>
+              Название <span className="required">*</span>
+            </label>
             <input
               required
               value={form.title}
               onChange={(e) => {
                 const title = e.target.value;
-                setForm((f) => ({ ...f, title, slug: generateSlug(title) }));
+                setForm((f) => ({
+                  ...f,
+                  title,
+                  slug: generateSlug(title),
+                }));
+                if (errors.title)
+                  setErrors((prev) => ({ ...prev, title: undefined }));
               }}
+              className={errors.title ? 'input-error' : ''}
+              maxLength={200}
             />
+            {errors.title && (
+              <span className="field-error">{errors.title}</span>
+            )}
           </div>
 
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
-            <label>Slug</label>
+            <label>
+              Slug <span className="required">*</span>
+            </label>
             <input
               required
               value={form.slug}
-              onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, slug: e.target.value }));
+                if (errors.slug)
+                  setErrors((prev) => ({ ...prev, slug: undefined }));
+              }}
+              className={errors.slug ? 'input-error' : ''}
             />
+            {errors.slug && (
+              <span className="field-error">{errors.slug}</span>
+            )}
           </div>
 
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
@@ -134,16 +218,26 @@ export default function ProductFormPage() {
             <textarea
               rows={4}
               value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, description: e.target.value }))
+              }
+              maxLength={5000}
             />
           </div>
 
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
-            <label>Категория *</label>
+            <label>
+              Категория <span className="required">*</span>
+            </label>
             <select
               required
               value={form.categoryId}
-              onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, categoryId: e.target.value }));
+                if (errors.categoryId)
+                  setErrors((prev) => ({ ...prev, categoryId: undefined }));
+              }}
+              className={errors.categoryId ? 'input-error' : ''}
             >
               <option value="">— выберите категорию —</option>
               {categories.map((cat) => (
@@ -152,15 +246,27 @@ export default function ProductFormPage() {
                 </option>
               ))}
             </select>
+            {errors.categoryId && (
+              <span className="field-error">{errors.categoryId}</span>
+            )}
           </div>
 
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
             <label>Артикул</label>
             <input
               value={form.article}
-              onChange={(e) => setForm((f) => ({ ...f, article: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, article: e.target.value }));
+                if (errors.article)
+                  setErrors((prev) => ({ ...prev, article: undefined }));
+              }}
               placeholder="Например: BRX-001"
+              className={errors.article ? 'input-error' : ''}
+              maxLength={50}
             />
+            {errors.article && (
+              <span className="field-error">{errors.article}</span>
+            )}
           </div>
 
           {/* Price Type Toggle */}
@@ -168,7 +274,9 @@ export default function ProductFormPage() {
             <label>Тип цены</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <label
-                className={`btn ${form.priceType === 'FIXED' ? 'btn-primary' : ''}`}
+                className={`btn ${
+                  form.priceType === 'FIXED' ? 'btn-primary' : ''
+                }`}
                 style={{ cursor: 'pointer' }}
               >
                 <input
@@ -176,13 +284,17 @@ export default function ProductFormPage() {
                   name="priceType"
                   value="FIXED"
                   checked={form.priceType === 'FIXED'}
-                  onChange={() => setForm((f) => ({ ...f, priceType: 'FIXED' }))}
+                  onChange={() =>
+                    setForm((f) => ({ ...f, priceType: 'FIXED' }))
+                  }
                   hidden
                 />
                 Фиксированная цена
               </label>
               <label
-                className={`btn ${form.priceType === 'QUOTE' ? 'btn-primary' : ''}`}
+                className={`btn ${
+                  form.priceType === 'QUOTE' ? 'btn-primary' : ''
+                }`}
                 style={{ cursor: 'pointer' }}
               >
                 <input
@@ -190,7 +302,13 @@ export default function ProductFormPage() {
                   name="priceType"
                   value="QUOTE"
                   checked={form.priceType === 'QUOTE'}
-                  onChange={() => setForm((f) => ({ ...f, priceType: 'QUOTE', price: '' }))}
+                  onChange={() =>
+                    setForm((f) => ({
+                      ...f,
+                      priceType: 'QUOTE',
+                      price: '',
+                    }))
+                  }
                   hidden
                 />
                 Запрос КП
@@ -206,34 +324,60 @@ export default function ProductFormPage() {
                 min={0}
                 step="0.01"
                 value={form.price}
-                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, price: e.target.value }));
+                  if (errors.price)
+                    setErrors((prev) => ({ ...prev, price: undefined }));
+                }}
                 placeholder="0.00"
+                className={errors.price ? 'input-error' : ''}
               />
+              {errors.price && (
+                <span className="field-error">{errors.price}</span>
+              )}
             </div>
           )}
 
           {/* Характеристики */}
           <div className="form-group" style={{ marginTop: '1rem' }}>
             <label>Характеристики</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+              }}
+            >
               {characteristics.map((char, i) => (
-                <div key={i} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    gap: '0.5rem',
+                    alignItems: 'center',
+                  }}
+                >
                   <input
                     placeholder="Ключ"
                     value={char.key}
-                    onChange={(e) => updateCharacteristic(i, 'key', e.target.value)}
+                    onChange={(e) =>
+                      updateCharacteristic(i, 'key', e.target.value)
+                    }
                     style={{ flex: 1 }}
                   />
                   <input
                     placeholder="Значение"
                     value={char.value}
-                    onChange={(e) => updateCharacteristic(i, 'value', e.target.value)}
+                    onChange={(e) =>
+                      updateCharacteristic(i, 'value', e.target.value)
+                    }
                     style={{ flex: 1 }}
                   />
                   <button
                     type="button"
                     className="btn btn-sm btn-danger"
                     onClick={() => removeCharacteristic(i)}
+                    title="Удалить характеристику"
                   >
                     ×
                   </button>
@@ -269,8 +413,16 @@ export default function ProductFormPage() {
             >
               Отмена
             </button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Сохранение...' : isEdit ? 'Сохранить' : 'Создать'}
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+            >
+              {loading
+                ? 'Сохранение...'
+                : isEdit
+                  ? 'Сохранить'
+                  : 'Создать'}
             </button>
           </div>
         </form>

@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
+import ToastContainer from './components/ToastContainer';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
@@ -18,36 +20,39 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
+        <ToastProvider>
+          <ToastContainer />
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
 
-          {/* Защищённые маршруты с Layout */}
-          <Route
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/users" element={<UsersPage />} />
-            <Route path="/users/new" element={<UserFormPage />} />
-            <Route path="/users/:id/edit" element={<UserFormPage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/orders/:id" element={<OrderDetailPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            {/* Защищённые маршруты с Layout */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/users" element={<UsersPage />} />
+              <Route path="/users/new" element={<UserFormPage />} />
+              <Route path="/users/:id/edit" element={<UserFormPage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/orders/:id" element={<OrderDetailPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
 
-            {/* Категории */}
-            <Route path="/admin/categories" element={<CategoriesPage />} />
-            <Route path="/admin/categories/new" element={<CategoryFormPage />} />
-            <Route path="/admin/categories/:id/edit" element={<CategoryFormPage />} />
+              {/* Категории */}
+              <Route path="/admin/categories" element={<CategoriesPage />} />
+              <Route path="/admin/categories/new" element={<CategoryFormPage />} />
+              <Route path="/admin/categories/:id/edit" element={<CategoryFormPage />} />
 
-            {/* Товары */}
-            <Route path="/admin/products" element={<ProductsPage />} />
-            <Route path="/admin/products/new" element={<ProductFormPage />} />
-            <Route path="/admin/products/:id/edit" element={<ProductFormPage />} />
-          </Route>
-        </Routes>
+              {/* Товары */}
+              <Route path="/admin/products" element={<ProductsPage />} />
+              <Route path="/admin/products/new" element={<ProductFormPage />} />
+              <Route path="/admin/products/:id/edit" element={<ProductFormPage />} />
+            </Route>
+          </Routes>
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -1,12 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import apiClient from '../api/client';
+import apiClient, { getErrorMessage } from '../api/client';
+import { useToast } from '../context/ToastContext';
 import FileUpload from '../components/FileUpload';
 import type { Category } from '../types';
+
+interface FormErrors {
+  name?: string;
+  slug?: string;
+}
 
 export default function CategoryFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   const isEdit = Boolean(id);
 
   const [form, setForm] = useState({
@@ -15,30 +22,52 @@ export default function CategoryFormPage() {
     title: '',
     description: '',
   });
+  const [errors, setErrors] = useState<FormErrors>({});
   const [image, setImage] = useState<{ id: string; url: string }[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [fetching, setFetching] = useState(isEdit);
 
   useEffect(() => {
     if (!isEdit) return;
-    apiClient.get(`/api/categories/${id}`).then((res) => {
-      const cat: Category = res.data;
-      setForm({
-        name: cat.name,
-        slug: cat.slug,
-        title: cat.title || '',
-        description: cat.description || '',
-      });
-      if (cat.image) {
-        setImage([{ id: cat.image.id, url: cat.image.url }]);
-      }
-    }).catch(console.error);
-  }, [id, isEdit]);
+    apiClient
+      .get(`/api/categories/${id}`)
+      .then((res) => {
+        const cat: Category = res.data;
+        setForm({
+          name: cat.name,
+          slug: cat.slug,
+          title: cat.title || '',
+          description: cat.description || '',
+        });
+        if (cat.image) {
+          setImage([{ id: cat.image.id, url: cat.image.url }]);
+        }
+      })
+      .catch((err) => addToast('error', getErrorMessage(err)))
+      .finally(() => setFetching(false));
+  }, [id, isEdit, addToast]);
+
+  const validate = (): boolean => {
+    const e: FormErrors = {};
+    if (!form.name.trim()) {
+      e.name = 'Название обязательно';
+    } else if (form.name.length > 100) {
+      e.name = 'Название не может быть длиннее 100 символов';
+    }
+    if (!form.slug.trim()) {
+      e.slug = 'Slug обязателен';
+    } else if (!/^[a-z0-9-]+$/.test(form.slug)) {
+      e.slug = 'Slug может содержать только латинские буквы, цифры и дефис';
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
+
     setLoading(true);
-    setError('');
 
     try {
       const payload = {
@@ -48,12 +77,14 @@ export default function CategoryFormPage() {
 
       if (isEdit) {
         await apiClient.put(`/admin/categories/${id}`, payload);
+        addToast('success', 'Категория обновлена');
       } else {
         await apiClient.post('/admin/categories', payload);
+        addToast('success', 'Категория создана');
       }
       navigate('/admin/categories');
-    } catch (err: any) {
-      setError(err.response?.data?.error || err.message);
+    } catch (err) {
+      addToast('error', getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -66,16 +97,20 @@ export default function CategoryFormPage() {
       .replace(/^-|-$/g, '');
   };
 
+  if (fetching) return <div className="loading">Загрузка...</div>;
+
   return (
     <div className="page">
-      <h1 className="page-title">{isEdit ? 'Редактировать категорию' : 'Новая категория'}</h1>
+      <h1 className="page-title">
+        {isEdit ? 'Редактировать категорию' : 'Новая категория'}
+      </h1>
 
       <div className="card">
-        {error && <div className="alert alert-error">{error}</div>}
-
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="form-group">
-            <label>Название *</label>
+            <label>
+              Название <span className="required">*</span>
+            </label>
             <input
               required
               value={form.name}
@@ -86,17 +121,28 @@ export default function CategoryFormPage() {
                   name,
                   slug: isEdit ? f.slug : generateSlug(name),
                 }));
+                if (errors.name) setErrors((prev) => ({ ...prev, name: undefined }));
               }}
+              className={errors.name ? 'input-error' : ''}
+              maxLength={100}
             />
+            {errors.name && <span className="field-error">{errors.name}</span>}
           </div>
 
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
-            <label>Slug</label>
+            <label>
+              Slug <span className="required">*</span>
+            </label>
             <input
               required
               value={form.slug}
-              onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, slug: e.target.value }));
+                if (errors.slug) setErrors((prev) => ({ ...prev, slug: undefined }));
+              }}
+              className={errors.slug ? 'input-error' : ''}
             />
+            {errors.slug && <span className="field-error">{errors.slug}</span>}
           </div>
 
           <div className="form-group" style={{ marginTop: '0.75rem' }}>
@@ -104,6 +150,7 @@ export default function CategoryFormPage() {
             <input
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              maxLength={200}
             />
           </div>
 
@@ -113,6 +160,7 @@ export default function CategoryFormPage() {
               rows={3}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              maxLength={2000}
             />
           </div>
 
@@ -133,7 +181,11 @@ export default function CategoryFormPage() {
             >
               Отмена
             </button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={loading}
+            >
               {loading ? 'Сохранение...' : isEdit ? 'Сохранить' : 'Создать'}
             </button>
           </div>

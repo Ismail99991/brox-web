@@ -1,23 +1,35 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import apiClient from '../api/client';
+import apiClient, { getErrorMessage } from '../api/client';
+import { useToast } from '../context/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import type { Product } from '../types';
 
 export default function ProductsPage() {
+  const { addToast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
 
   useEffect(() => {
-    apiClient.get('/api/products')
+    apiClient
+      .get('/api/products')
       .then((res) => setProducts(res.data))
-      .catch(console.error)
+      .catch((err) => addToast('error', getErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [addToast]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Удалить товар?')) return;
-    await apiClient.delete(`/admin/products/${id}`);
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await apiClient.delete(`/admin/products/${deleteTarget.id}`);
+      setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      addToast('success', `Товар «${deleteTarget.title}» удалён`);
+    } catch (err) {
+      addToast('error', getErrorMessage(err));
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   if (loading) return <div className="loading">Загрузка...</div>;
@@ -64,10 +76,13 @@ export default function ProductsPage() {
                   <td>{p.category?.name || '—'}</td>
                   <td>{p.priceType === 'FIXED' ? `${p.price} ₽` : '—'}</td>
                   <td>
-                    <span className={`status-badge ${p.priceType === 'FIXED' ? '' : 'status-badge-warning'}`}
-                      style={{ background: p.priceType === 'FIXED' ? '#10b981' : '#f59e0b' }}
+                    <span
+                      className="status-badge"
+                      style={{
+                        background: p.priceType === 'FIXED' ? '#10b981' : '#f59e0b',
+                      }}
                     >
-                      {p.priceType === 'FIXED' ? 'Фикс.' : 'КП'}
+                      {p.priceType === 'FIXED' ? 'Фиксированная' : 'Запрос КП'}
                     </span>
                   </td>
                   <td>{p.article || '—'}</td>
@@ -87,7 +102,7 @@ export default function ProductsPage() {
                       </Link>
                       <button
                         className="btn btn-sm btn-danger"
-                        onClick={() => handleDelete(p.id)}
+                        onClick={() => setDeleteTarget(p)}
                       >
                         🗑️
                       </button>
@@ -106,6 +121,21 @@ export default function ProductsPage() {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Удаление товара"
+        message={
+          deleteTarget
+            ? `Вы уверены, что хотите удалить товар «${deleteTarget.title}»? Это действие нельзя отменить.`
+            : ''
+        }
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

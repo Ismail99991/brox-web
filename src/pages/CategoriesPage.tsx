@@ -1,23 +1,35 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import apiClient from '../api/client';
+import apiClient, { getErrorMessage } from '../api/client';
+import { useToast } from '../context/ToastContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 import type { Category } from '../types';
 
 export default function CategoriesPage() {
+  const { addToast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
 
   useEffect(() => {
-    apiClient.get('/admin/categories')
+    apiClient
+      .get('/admin/categories')
       .then((res) => setCategories(res.data))
-      .catch(console.error)
+      .catch((err) => addToast('error', getErrorMessage(err)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [addToast]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Удалить категорию?')) return;
-    await apiClient.delete(`/admin/categories/${id}`);
-    setCategories((prev) => prev.filter((c) => c.id !== id));
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await apiClient.delete(`/admin/categories/${deleteTarget.id}`);
+      setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      addToast('success', `Категория «${deleteTarget.name}» удалена`);
+    } catch (err) {
+      addToast('error', getErrorMessage(err));
+    } finally {
+      setDeleteTarget(null);
+    }
   };
 
   if (loading) return <div className="loading">Загрузка...</div>;
@@ -70,7 +82,7 @@ export default function CategoriesPage() {
                       </Link>
                       <button
                         className="btn btn-sm btn-danger"
-                        onClick={() => handleDelete(cat.id)}
+                        onClick={() => setDeleteTarget(cat)}
                       >
                         🗑️
                       </button>
@@ -89,6 +101,21 @@ export default function CategoriesPage() {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Удаление категории"
+        message={
+          deleteTarget
+            ? `Вы уверены, что хотите удалить категорию «${deleteTarget.name}»? Товары в этой категории останутся без категории.`
+            : ''
+        }
+        confirmLabel="Удалить"
+        cancelLabel="Отмена"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
