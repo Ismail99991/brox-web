@@ -3,6 +3,8 @@
 export interface User {
   id: string;
   email: string;
+  avatarId?: string | null;
+  avatar?: UploadedFile | null;
   createdAt: string;
 }
 
@@ -10,12 +12,32 @@ export interface Category {
   id: string;
   name: string;
   slug: string;
+  title?: string | null;
+  description?: string | null;
+  imageId?: string | null;
+  image?: UploadedFile | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UploadedFile {
+  id: string;
+  bucketKey: string;
+  url: string;
+  mimeType: string;
+  size: number;
+  category: 'AVATAR' | 'PRODUCT_IMAGE' | 'CATEGORY_IMAGE' | 'ORDER_DOCUMENT' | 'QUOTE_ATTACHMENT' | 'BRANDING';
+  fileName: string;
+  userId?: string | null;
+  productId?: string | null;
+  orderId?: string | null;
+  quoteId?: string | null;
   createdAt: string;
 }
 
-export interface ProductImage {
-  id: string;
-  url: string;
+export interface Characteristic {
+  key: string;
+  value: string;
 }
 
 export interface Product {
@@ -24,11 +46,14 @@ export interface Product {
   slug: string;
   description: string | null;
   type: 'SIMPLE' | 'CONFIGURATOR' | 'REQUEST_QUOTE';
+  priceType: 'FIXED' | 'QUOTE';
   price: number | null;
+  characteristics: Characteristic[] | null;
+  article: string | null;
   isActive: boolean;
   categoryId: string;
   category: Category;
-  images: ProductImage[];
+  images: UploadedFile[];
   attributes: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
@@ -59,6 +84,7 @@ export interface Order {
   status: OrderStatus;
   total: number;
   items: OrderItem[];
+  documents?: UploadedFile[];
   createdAt: string;
   updatedAt: string;
 }

@@ -9,6 +9,10 @@ import UserFormPage from './pages/UserFormPage';
 import OrdersPage from './pages/OrdersPage';
 import OrderDetailPage from './pages/OrderDetailPage';
 import SettingsPage from './pages/SettingsPage';
+import CategoriesPage from './pages/CategoriesPage';
+import CategoryFormPage from './pages/CategoryFormPage';
+import ProductsPage from './pages/ProductsPage';
+import ProductFormPage from './pages/ProductFormPage';
 
 export default function App() {
   return (
@@ -32,6 +36,16 @@ export default function App() {
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/:id" element={<OrderDetailPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+
+            {/* Категории */}
+            <Route path="/admin/categories" element={<CategoriesPage />} />
+            <Route path="/admin/categories/new" element={<CategoryFormPage />} />
+            <Route path="/admin/categories/:id/edit" element={<CategoryFormPage />} />
+
+            {/* Товары */}
+            <Route path="/admin/products" element={<ProductsPage />} />
+            <Route path="/admin/products/new" element={<ProductFormPage />} />
+            <Route path="/admin/products/:id/edit" element={<ProductFormPage />} />
           </Route>
         </Routes>
       </AuthProvider>

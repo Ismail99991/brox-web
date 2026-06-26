@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import AvatarUpload from '../components/AvatarUpload';
 
 export default function SettingsPage() {
   const { user } = useAuth();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   return (
     <div className="page">
@@ -9,6 +12,14 @@ export default function SettingsPage() {
 
       <div className="card" style={{ maxWidth: 480 }}>
         <h2 className="card-title">Профиль</h2>
+
+        <div className="mb-3 d-flex flex-column align-items-center">
+          <AvatarUpload
+            currentAvatarUrl={avatarUrl || user?.avatar?.url}
+            onAvatarChange={(url) => setAvatarUrl(url)}
+          />
+        </div>
+
         <div className="info-list">
           <div className="info-row">
             <span className="info-label">Email</span>
