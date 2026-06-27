@@ -14,9 +14,7 @@ export default function AvatarUpload({ currentAvatarUrl, onAvatarChange }: Props
     const formData = new FormData();
     formData.append('file', file);
 
-    const { data } = await apiClient.post('/upload/avatar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const { data } = await apiClient.post('/upload/avatar', formData);
 
     onAvatarChange(data.avatar?.url || '');
   }, [onAvatarChange]);

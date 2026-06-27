@@ -32,9 +32,7 @@ export default function FileUpload({
           formData.append('file', file);
           formData.append('category', category);
 
-          const { data } = await apiClient.post('/upload/file', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-          });
+          const { data } = await apiClient.post('/upload/file', formData);
 
           uploaded.push({ id: data.id, url: data.url });
         }
