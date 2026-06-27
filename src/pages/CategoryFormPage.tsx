@@ -30,7 +30,7 @@ export default function CategoryFormPage() {
   useEffect(() => {
     if (!isEdit) return;
     apiClient
-      .get(`/api/categories/${id}`)
+      .get(`/categories/${id}`)
       .then((res) => {
         const cat: Category = res.data;
         setForm({

@@ -37,8 +37,8 @@ export default function ProductFormPage() {
 
   useEffect(() => {
     Promise.all([
-      apiClient.get('/api/categories'),
-      isEdit && id ? apiClient.get(`/api/products/id/${id}`) : Promise.resolve(null),
+      apiClient.get('/categories'),
+      isEdit && id ? apiClient.get(`/products/id/${id}`) : Promise.resolve(null),
     ])
       .then(([catRes, prodRes]) => {
         setCategories(catRes.data);
