@@ -37,7 +37,7 @@ export default function CallbackRequestsPage() {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      await apiClient.put(`/callbacks/${id}/status`, { status: newStatus });
+      await apiClient.put(`/market/callback/${id}/status`, { status: newStatus });
       setCallbacks((prev) =>
         prev.map((cb) => (cb.id === id ? { ...cb, status: newStatus } : cb))
       );

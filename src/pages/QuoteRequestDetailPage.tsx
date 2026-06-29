@@ -52,7 +52,7 @@ export default function QuoteRequestDetailPage() {
 
   const handleStatusChange = async (newStatus: string) => {
     try {
-      const { data } = await apiClient.put(`/quotes/${id}/status`, {
+      const { data } = await apiClient.put(`/market/quote-request/${id}/status`, {
         status: newStatus,
       });
       setQuote(data);

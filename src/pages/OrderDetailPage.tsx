@@ -73,7 +73,7 @@ export default function OrderDetailPage() {
   const handleDelete = async () => {
     if (!window.confirm('Удалить заказ?')) return;
     try {
-      await apiClient.delete(`/orders/${id}`);
+      await apiClient.delete(`/market/orders/${id}`);
       addToast('success', 'Заказ удалён');
       navigate('/orders');
     } catch (err) {

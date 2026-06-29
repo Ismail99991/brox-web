@@ -52,7 +52,7 @@ export default function UserFormPage() {
       if (password) payload.password = password;
 
       if (isEdit) {
-        await apiClient.put(`/crm/users/${id}`, payload);
+        await apiClient.put(`/crm/auth/${id}`, payload);
         addToast('success', 'Сотрудник обновлён');
       } else {
         await apiClient.post('/crm/users', payload);

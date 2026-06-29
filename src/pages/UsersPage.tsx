@@ -43,7 +43,7 @@ export default function UsersPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await apiClient.delete(`/crm/users/${deleteTarget.id}`);
+      await apiClient.delete(`/crm/auth/${deleteTarget.id}`);
       setUsers((prev) => prev.filter((u) => u.id !== deleteTarget.id));
       addToast('success', `Сотрудник ${deleteTarget.email} удалён`);
     } catch (err) {

@@ -35,11 +35,11 @@ export default function DashboardPage() {
     try {
       const [usersRes, ordersRes, productsRes, eventsRes, quotesRes, callbacksRes] =
         await Promise.allSettled([
-          apiClient.get('/market/users'),
-          apiClient.get('/orders'),
+          apiClient.get('/market/orders'),
           apiClient.get('/products'),
           apiClient.get('/events'),
-          apiClient.get('/quotes'),
+
+          apiClient.get('/market/quote-request'),
           apiClient.get('/callbacks'),
         ]);
 

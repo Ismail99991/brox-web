@@ -26,23 +26,28 @@ const statusLabels: Record<string, string> = {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadOrders();
-  }, []);
+  const [error, setError] = useState<string | null>(null);
 
   const loadOrders = async () => {
     try {
-      const { data } = await apiClient.get('/orders');
+      const { data } = await apiClient.get('/market/orders');
       setOrders(data);
+      setError(null);
     } catch (err) {
-      console.error('Failed to load orders', err);
+      setError('Не удалось загрузить заказы. API пока не реализован.');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
   if (loading) return <div className="loading">Загрузка...</div>;
+
+  if (error) return <div className="error">{error}</div>;
 
   return (
     <div className="page">
@@ -103,3 +108,4 @@ export default function OrdersPage() {
     </div>
   );
 }
+
