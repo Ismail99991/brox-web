@@ -6,6 +6,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3012,
+    // Разрешаем внешние хосты для dev-сервера
+    allowedHosts: ['crm.techsteam.ru'],
     // Прокси для API, чтобы избежать CORS-проблем при разработке
     proxy: {
       '/api': {
@@ -13,6 +15,10 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+  },
+  preview: {
+    // Разрешаем внешние хосты для preview (vite preview)
+    allowedHosts: ['crm.techsteam.ru'],
   },
   build: {
     // Code Splitting — разбивка по страницам для слабого VPS
