@@ -14,7 +14,7 @@ export default function ProductsPage() {
   useEffect(() => {
     apiClient
       .get('/products')
-      .then((res) => setProducts(res.data))
+      .then((res) => setProducts(res.data.data || []))
       .catch((err) => addToast('error', getErrorMessage(err)))
       .finally(() => setLoading(false));
   }, [addToast]);
