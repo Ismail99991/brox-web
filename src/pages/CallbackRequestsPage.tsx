@@ -26,7 +26,7 @@ export default function CallbackRequestsPage() {
 
   const loadCallbacks = async () => {
     try {
-      const { data } = await apiClient.get('/market/callback');
+      const { data } = await apiClient.get('/crm/callback');
       setCallbacks(data);
     } catch (err) {
       addToast('error', getErrorMessage(err));
@@ -37,7 +37,7 @@ export default function CallbackRequestsPage() {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      await apiClient.put(`/market/callback/${id}/status`, { status: newStatus });
+      await apiClient.put(`/crm/callback/${id}/status`, { status: newStatus });
       setCallbacks((prev) =>
         prev.map((cb) => (cb.id === id ? { ...cb, status: newStatus } : cb))
       );

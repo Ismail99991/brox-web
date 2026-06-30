@@ -14,7 +14,7 @@ export default function MarketUsersPage() {
 
   const loadUsers = async () => {
     try {
-      const { data } = await apiClient.get('/market/users');
+      const { data } = await apiClient.get('/crm/market-users');
       setUsers(data);
     } catch (err) {
       addToast('error', getErrorMessage(err));

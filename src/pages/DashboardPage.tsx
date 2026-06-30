@@ -34,12 +34,12 @@ export default function DashboardPage() {
   const loadDashboardData = async () => {
     try {
       const results = await Promise.allSettled([
-        apiClient.get('/market/users'),
+        apiClient.get('/crm/market-users'),
         apiClient.get('/market/orders'),
         apiClient.get('/products'),
         apiClient.get('/events'),
-        apiClient.get('/market/quote-request'),
-        apiClient.get('/market/callback'),
+        apiClient.get('/crm/quote-request'),
+        apiClient.get('/crm/callback'),
       ]);
 
       const users = results[0].status === 'fulfilled' ? results[0].value.data : [];
